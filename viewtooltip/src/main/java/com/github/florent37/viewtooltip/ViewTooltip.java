@@ -16,6 +16,7 @@ import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.widget.NestedScrollView;
 import android.text.Html;
+import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -138,7 +139,7 @@ public class ViewTooltip {
                         @Override
                         public boolean onPreDraw() {
 
-                            tooltip_view.setup(rect, decorView.getWidth());
+                            tooltip_view.setup(rect, decorView.getWidth(), decorView.getHeight());
 
                             tooltip_view.getViewTreeObserver().removeOnPreDrawListener(this);
 
@@ -291,7 +292,7 @@ public class ViewTooltip {
 
     public static class TooltipView extends FrameLayout {
 
-        private static final int MARGIN_SCREEN_BORDER_TOOLTIP = 30;
+        private final int screenBoarder;
         private int arrowHeight = 15;
         private int arrowWidth = 15;
         protected View childView;
@@ -338,6 +339,7 @@ public class ViewTooltip {
 
 
             setLayerType(LAYER_TYPE_SOFTWARE, bubblePaint);
+            screenBoarder = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 16, getResources().getDisplayMetrics());
 
             setWithShadow(true);
 
@@ -539,7 +541,7 @@ public class ViewTooltip {
             this.autoHide = autoHide;
         }
 
-        public void setupPosition(Rect rect) {
+        public void setupPosition(Rect rect, int screenWidth, int screenHeight) {
 
             int x, y;
 
@@ -557,6 +559,18 @@ public class ViewTooltip {
                     y = rect.top - getHeight() - distanceWithView;
                 }
                 x = rect.left + getAlignOffset(getWidth(), rect.width());
+            }
+
+            if (x < screenBoarder) {
+                x = screenBoarder;
+            } else if (x > (screenWidth - screenBoarder)) {
+                x = (screenWidth - screenBoarder);
+            }
+
+            if (y < screenBoarder) {
+                y = screenBoarder;
+            } else if (y > (screenHeight - screenBoarder)) {
+                y = (screenHeight - screenBoarder);
             }
 
             setTranslationX(x);
@@ -647,39 +661,39 @@ public class ViewTooltip {
 
             boolean changed = false;
             final ViewGroup.LayoutParams layoutParams = getLayoutParams();
-            if (position == Position.LEFT && getWidth() > rect.left) {
-                layoutParams.width = rect.left - MARGIN_SCREEN_BORDER_TOOLTIP - distanceWithView;
+            if (position == Position.LEFT && rect.left < getWidth()) {
+                layoutParams.width = rect.left - screenBoarder - distanceWithView;
                 changed = true;
             } else if (position == Position.RIGHT && rect.right + getWidth() > screenWidth) {
-                layoutParams.width = screenWidth - rect.right - MARGIN_SCREEN_BORDER_TOOLTIP - distanceWithView;
+                layoutParams.width = screenWidth - rect.right - screenBoarder - distanceWithView;
                 changed = true;
             } else if (position == Position.TOP || position == Position.BOTTOM) {
                 int adjustedLeft = rect.left;
                 int adjustedRight = rect.right;
 
-                if((rect.centerX() + getWidth() / 2f) > screenWidth){
+                if ((rect.centerX() + getWidth() / 2f) > screenWidth) {
                     float diff = (rect.centerX() + getWidth() / 2f) - screenWidth;
 
-                    adjustedLeft -=  diff;
-                    adjustedRight -=  diff;
+                    adjustedLeft -= diff;
+                    adjustedRight -= diff;
 
                     setAlign(ALIGN.CENTER);
                     changed = true;
-                }else if((rect.centerX() - getWidth() / 2f) < 0){
+                } else if ((rect.centerX() - getWidth() / 2f) < 0) {
                     float diff = -(rect.centerX() - getWidth() / 2f);
 
-                    adjustedLeft +=  diff;
-                    adjustedRight +=  diff;
+                    adjustedLeft += diff;
+                    adjustedRight += diff;
 
                     setAlign(ALIGN.CENTER);
                     changed = true;
                 }
 
-                if(adjustedLeft < 0){
+                if (adjustedLeft < 0) {
                     adjustedLeft = 0;
                 }
 
-                if(adjustedRight > screenWidth){
+                if (adjustedRight > screenWidth) {
                     adjustedRight = screenWidth;
                 }
 
@@ -692,8 +706,8 @@ public class ViewTooltip {
             return changed;
         }
 
-        private void onSetup(Rect myRect) {
-            setupPosition(myRect);
+        private void onSetup(Rect myRect, int screenWidth, final int screenHeight) {
+            setupPosition(myRect, screenWidth, screenHeight);
 
             bubblePath = drawBubble(new RectF(shadowPadding, shadowPadding, getWidth() - shadowPadding * 2f, getHeight() - shadowPadding * 2f), corner, corner, corner, corner);
             startEnterAnimation();
@@ -701,18 +715,18 @@ public class ViewTooltip {
             handleAutoRemove();
         }
 
-        public void setup(final Rect viewRect, int screenWidth) {
+        public void setup(final Rect viewRect, final int screenWidth, final int screenHeight) {
             this.viewRect = new Rect(viewRect);
             final Rect myRect = new Rect(viewRect);
 
             final boolean changed = adjustSize(myRect, screenWidth);
             if (!changed) {
-                onSetup(myRect);
+                onSetup(myRect, screenWidth, screenHeight);
             } else {
                 getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
                     @Override
                     public boolean onPreDraw() {
-                        onSetup(myRect);
+                        onSetup(myRect, screenWidth, screenHeight);
                         getViewTreeObserver().removeOnPreDrawListener(this);
                         return false;
                     }
@@ -736,7 +750,7 @@ public class ViewTooltip {
         }
 
         public void setWithShadow(boolean withShadow) {
-            if(withShadow){
+            if (withShadow) {
                 bubblePaint.setShadowLayer(shadowWidth, 0, 0, Color.parseColor("#aaaaaa"));
             } else {
                 bubblePaint.setShadowLayer(0, 0, 0, Color.TRANSPARENT);
